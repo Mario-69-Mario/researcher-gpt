@@ -1,5 +1,7 @@
 import os
+import sys
 from dotenv import load_dotenv
+from serpapi import GoogleSearch
 
 from langchain import PromptTemplate
 from langchain.agents import initialize_agent, Tool
@@ -21,27 +23,23 @@ from fastapi import FastAPI
 load_dotenv()
 brwoserless_api_key = os.getenv("BROWSERLESS_API_KEY")
 serper_api_key = os.getenv("SERP_API_KEY")
+OPEN_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # 1. Tool for search
 
 
 def search(query):
-    url = "https://google.serper.dev/search"
+    
+    search = GoogleSearch({
+        "q": query,
+        "api_key": serper_api_key
+        })
+    
+    result = search.get_dict()
 
-    payload = json.dumps({
-        "q": query
-    })
+    print(result)
 
-    headers = {
-        'X-API-KEY': serper_api_key,
-        'Content-Type': 'application/json'
-    }
-
-    response = requests.request("POST", url, headers=headers, data=payload)
-
-    print(response.text)
-
-    return response.text
+    return result
 
 
 # 2. Tool for scraping
@@ -84,7 +82,7 @@ def scrape_website(objective: str, url: str):
 
 
 def summary(objective, content):
-    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-16k-0613")
+    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-instruct")
 
     text_splitter = RecursiveCharacterTextSplitter(
         separators=["\n\n", "\n"], chunk_size=10000, chunk_overlap=500)
@@ -157,7 +155,7 @@ agent_kwargs = {
     "system_message": system_message,
 }
 
-llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-16k-0613")
+llm = ChatOpenAI(temperature=0, model="gpt-4-0613")
 memory = ConversationSummaryBufferMemory(
     memory_key="memory", return_messages=True, llm=llm, max_token_limit=1000)
 
@@ -189,10 +187,8 @@ agent = initialize_agent(
 # if __name__ == '__main__':
 #     main()
 
-
 # 5. Set this as an API endpoint via FastAPI
 app = FastAPI()
-
 
 class Query(BaseModel):
     query: str
@@ -204,3 +200,11 @@ def researchAgent(query: Query):
     content = agent({"input": query})
     actual_content = content['output']
     return actual_content
+
+
+def main():
+    #sys.argv[1]
+    return agent({"input": "Deon Nel" })
+
+if __name__ == '__main__':
+     main()
